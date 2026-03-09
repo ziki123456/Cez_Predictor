@@ -193,6 +193,21 @@ def read_data_info() -> str:
     return DATA_INFO.read_text(encoding="utf-8")
 
 
+def get_data_info_lines() -> dict[str, str]:
+    if not DATA_INFO.exists():
+        return {}
+
+    lines = DATA_INFO.read_text(encoding="utf-8").splitlines()
+    info = {}
+
+    for line in lines:
+        if ":" in line:
+            key, value = line.split(":", 1)
+            info[key.strip()] = value.strip()
+
+    return info
+
+
 def filter_chart_data(df: pd.DataFrame, period_label: str) -> pd.DataFrame:
     if df.empty:
         return df
@@ -237,6 +252,13 @@ def build_price_chart(chart_df: pd.DataFrame) -> alt.Chart:
     )
 
     return chart
+
+
+def format_prediction_text(verdict: str, probability: float) -> str:
+    if np.isnan(probability):
+        return f"Predikce modelu: {verdict}"
+
+    return f"Predikce modelu: {verdict} | Pravděpodobnost růstu: {probability:.4f}"
 
 
 def main() -> None:
@@ -287,26 +309,32 @@ def main() -> None:
         df = load_data(DATA_CSV)
         pipeline, feature_columns = load_model(MODEL_PATH)
         result = predict_last_day(df, pipeline, feature_columns)
+        data_info = get_data_info_lines()
     except Exception as e:
         st.error(f"Chyba: {e}")
         st.stop()
 
-    col1, col2, col3 = st.columns(3)
+    st.subheader("Výsledek predikce")
 
-    with col1:
+    if result["verdict"] == "NAHORU":
+        st.success(format_prediction_text(result["verdict"], result["proba_up"]))
+    else:
+        st.warning(format_prediction_text(result["verdict"], result["proba_up"]))
+
+    summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
+
+    with summary_col1:
         st.metric("Ticker", "CEZ.PR")
 
-    with col2:
+    with summary_col2:
         st.metric("Poslední den v datech", result["date"])
 
-    with col3:
-        st.metric("Predikce dalšího dne", result["verdict"])
+    with summary_col3:
+        st.metric("Poslední Close", f"{result['close']:.2f}")
 
-    st.subheader("Pravděpodobnost růstu")
-    if not np.isnan(result["proba_up"]):
-        st.write(f"{result['proba_up']:.4f}")
-    else:
-        st.write("Model pravděpodobnost neumí spočítat.")
+    with summary_col4:
+        downloaded_value = data_info.get("Downloaded", "neuvedeno")
+        st.metric("Poslední aktualizace", downloaded_value)
 
     st.subheader("Graf Close ceny")
 
@@ -331,14 +359,31 @@ def main() -> None:
             f"Počet řádků: {len(filtered_chart_df)}"
         )
 
+    st.subheader("Základní statistiky datasetu")
+
+    stats_col1, stats_col2, stats_col3, stats_col4 = st.columns(4)
+
+    with stats_col1:
+        st.metric("Počet řádků", f"{len(df)}")
+
+    with stats_col2:
+        st.metric("Min Close", f"{df['Close'].min():.2f}")
+
+    with stats_col3:
+        st.metric("Max Close", f"{df['Close'].max():.2f}")
+
+    with stats_col4:
+        st.metric("Průměr Close", f"{df['Close'].mean():.2f}")
+
+    dataset_start = df["Date"].min().date().isoformat()
+    dataset_end = df["Date"].max().date().isoformat()
+
+    st.write(f"Období datasetu: {dataset_start} až {dataset_end}")
+
     st.subheader("Posledních 10 řádků dat")
     preview_df = df.tail(10).copy()
     preview_df["Date"] = preview_df["Date"].dt.strftime("%Y-%m-%d")
     st.dataframe(preview_df, use_container_width=True)
-
-    st.subheader("Informace o datasetu")
-    st.write(f"Počet řádků v datasetu: {len(df)}")
-    st.write(f"Poslední Close cena použitá pro výpočet: {result['close']:.2f}")
 
     with st.expander("Obsah data_info.txt"):
         st.text(read_data_info())
