@@ -428,6 +428,13 @@ def main() -> None:
     with st.expander("Obsah data_info.txt"):
         st.text(read_data_info())
 
+st.divider()
+
+st.caption(
+    "Upozornění: Tento nástroj je pouze demonstrační projekt pro analýzu historických dat akcie ČEZ. "
+    "Predikce modelu vychází pouze z minulých cen a objemů obchodování. "
+    "Nejedná se o investiční doporučení a skutečný vývoj ceny může být ovlivněn mnoha dalšími faktory."
+)
 
 if __name__ == "__main__":
     main()
