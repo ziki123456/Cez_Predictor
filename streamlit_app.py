@@ -200,12 +200,12 @@ def filter_chart_data(df: pd.DataFrame, period_label: str) -> pd.DataFrame:
     last_date = df["Date"].max()
 
     period_map = {
-        "3 měsíce": pd.DateOffset(months=3),
-        "6 měsíců": pd.DateOffset(months=6),
-        "1 rok": pd.DateOffset(years=1),
-        "3 roky": pd.DateOffset(years=3),
-        "5 let": pd.DateOffset(years=5),
-        "Celé období": None,
+        "3M": pd.DateOffset(months=3),
+        "6M": pd.DateOffset(months=6),
+        "1R": pd.DateOffset(years=1),
+        "3R": pd.DateOffset(years=3),
+        "5R": pd.DateOffset(years=5),
+        "Vše": None,
     }
 
     offset = period_map[period_label]
@@ -310,10 +310,11 @@ def main() -> None:
 
     st.subheader("Graf Close ceny")
 
-    chart_period = st.selectbox(
-        "Vyber období grafu",
-        options=["3 měsíce", "6 měsíců", "1 rok", "3 roky", "5 let", "Celé období"],
-        index=2,
+    chart_period = st.segmented_control(
+        "Období grafu",
+        options=["3M", "6M", "1R", "3R", "5R", "Vše"],
+        default="1R",
+        selection_mode="single",
     )
 
     filtered_chart_df = filter_chart_data(df, chart_period)
@@ -322,6 +323,13 @@ def main() -> None:
         st.warning("Pro vybrané období nejsou k dispozici žádná data.")
     else:
         st.altair_chart(build_price_chart(filtered_chart_df), use_container_width=True)
+
+        chart_start = filtered_chart_df["Date"].min().date().isoformat()
+        chart_end = filtered_chart_df["Date"].max().date().isoformat()
+        st.caption(
+            f"Zobrazené období: {chart_start} až {chart_end} | "
+            f"Počet řádků: {len(filtered_chart_df)}"
+        )
 
     st.subheader("Posledních 10 řádků dat")
     preview_df = df.tail(10).copy()
