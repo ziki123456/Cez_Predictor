@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 
+import altair as alt
 import joblib
 import numpy as np
 import pandas as pd
@@ -192,6 +193,52 @@ def read_data_info() -> str:
     return DATA_INFO.read_text(encoding="utf-8")
 
 
+def filter_chart_data(df: pd.DataFrame, period_label: str) -> pd.DataFrame:
+    if df.empty:
+        return df
+
+    last_date = df["Date"].max()
+
+    period_map = {
+        "3 měsíce": pd.DateOffset(months=3),
+        "6 měsíců": pd.DateOffset(months=6),
+        "1 rok": pd.DateOffset(years=1),
+        "3 roky": pd.DateOffset(years=3),
+        "5 let": pd.DateOffset(years=5),
+        "Celé období": None,
+    }
+
+    offset = period_map[period_label]
+    if offset is None:
+        return df.copy()
+
+    start_date = last_date - offset
+    return df[df["Date"] >= start_date].copy()
+
+
+def build_price_chart(chart_df: pd.DataFrame) -> alt.Chart:
+    chart_data = chart_df.copy()
+    chart_data["DateText"] = chart_data["Date"].dt.strftime("%Y-%m-%d")
+    chart_data["CloseRounded"] = chart_data["Close"].round(2)
+
+    chart = (
+        alt.Chart(chart_data)
+        .mark_line()
+        .encode(
+            x=alt.X("Date:T", title="Datum"),
+            y=alt.Y("Close:Q", title="Close cena"),
+            tooltip=[
+                alt.Tooltip("DateText:N", title="Datum"),
+                alt.Tooltip("CloseRounded:Q", title="Close", format=".2f"),
+            ],
+        )
+        .properties(height=420)
+        .interactive()
+    )
+
+    return chart
+
+
 def main() -> None:
     st.set_page_config(
         page_title="CEZ Predictor",
@@ -220,12 +267,12 @@ def main() -> None:
             with st.spinner("Probíhá trénink modelu..."):
                 ok, message = train_model_from_app()
 
+            st.session_state["train_output"] = message
+
             if ok:
                 st.success("Model byl znovu natrénován.")
-                st.session_state["train_output"] = message
                 st.rerun()
             else:
-                st.session_state["train_output"] = message
                 st.error("Trénink modelu selhal.")
 
     with top_col3:
@@ -262,8 +309,19 @@ def main() -> None:
         st.write("Model pravděpodobnost neumí spočítat.")
 
     st.subheader("Graf Close ceny")
-    chart_df = df[["Date", "Close"]].copy().set_index("Date")
-    st.line_chart(chart_df)
+
+    chart_period = st.selectbox(
+        "Vyber období grafu",
+        options=["3 měsíce", "6 měsíců", "1 rok", "3 roky", "5 let", "Celé období"],
+        index=2,
+    )
+
+    filtered_chart_df = filter_chart_data(df, chart_period)
+
+    if filtered_chart_df.empty:
+        st.warning("Pro vybrané období nejsou k dispozici žádná data.")
+    else:
+        st.altair_chart(build_price_chart(filtered_chart_df), use_container_width=True)
 
     st.subheader("Posledních 10 řádků dat")
     preview_df = df.tail(10).copy()
