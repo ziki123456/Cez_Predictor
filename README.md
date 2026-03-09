@@ -1,20 +1,114 @@
+
 # CEZ Predictor (PV projekt)
 
-Jednoduchá aplikace, která z historických denních dat akcie ČEZ (CEZ.PR) spočítá technické atributy, natrénuje model a potom zkusí odhadnout směr dalšího obchodního dne (NAHORU / DOLŮ).
+Jednoduchá aplikace pro analýzu historických dat akcie ČEZ (CEZ.PR), která pomocí strojového učení zkusí odhadnout směr dalšího obchodního dne (NAHORU / DOLŮ).
 
-## Co to umí
-- stáhnout reálná data (řešeno v Google Colabu přes yfinance)
-- uložit dataset do CSV + uložit metadata o stažení do data_info.txt
-- lokálně natrénovat ML model (Logistic Regression)
-- lokálně spustit aplikaci, která vypíše poslední den v datech a predikci dalšího dne
+Projekt pracuje s reálnými historickými daty akcie ČEZ, ze kterých vytváří technické atributy (features), trénuje klasifikační model a následně zobrazuje predikci v jednoduché webové aplikaci.
 
-## Struktura projektu
-## Struktura projektu
+---
+
+# Spuštění programu ve škole (bez IDE)
+
+Projekt lze spustit pouze pomocí příkazové řádky (CMD / PowerShell). Není potřeba PyCharm ani jiné IDE.
+
+## 1) Stažení projektu
+
+Stáhni projekt z GitHubu jako ZIP nebo pomocí `git clone` a rozbal ho do složky.
+
+Poté otevři CMD a přejdi do složky projektu například:
+
+```
+cd C:\Users\USERNAME\Desktop\Cez_Predictor
+```
+
+---
+
+## 2) Vytvoření virtuálního prostředí
+
+V kořenové složce projektu spusť:
+
+```
+py -3.13 -m venv .venv
+```
+
+Pokud verze 3.13 není dostupná:
+
+```
+py -m venv .venv
+```
+
+---
+
+## 3) Aktivace virtuálního prostředí
+
+```
+.venv\Scripts\activate
+```
+
+Po aktivaci by se mělo zobrazit:
+
+```
+(.venv)
+```
+
+---
+
+## 4) Instalace knihoven
+
+Nainstaluj všechny potřebné knihovny:
+
+```
+pip install -r requirements.txt
+```
+
+---
+
+## 5) Trénink modelu
+
+Spusť:
+
+```
+py train_model.py
+```
+
+Po dokončení se vytvoří soubor:
+
+```
+models/cez_direction_model.joblib
+```
+
+a v konzoli se zobrazí metriky modelu (accuracy, confusion matrix, classification report).
+
+---
+
+## 6) Spuštění aplikace
+
+Aplikace používá jednoduché webové rozhraní pomocí knihovny Streamlit.
+
+Spusť:
+
+```
+streamlit run streamlit_app.py
+```
+
+Po spuštění se otevře webová stránka v prohlížeči.
+
+V aplikaci je možné:
+
+- zobrazit graf historické ceny
+- zobrazit statistiky datasetu
+- zobrazit klouzavé průměry (SMA 5 a SMA 10)
+- natrénovat model
+- zobrazit predikci dalšího dne
+
+---
+
+# Struktura projektu
 
 ```
 Cez_Predictor/
 │
-├── app.py
+├── streamlit_app.py
 ├── train_model.py
 ├── requirements.txt
 │
@@ -27,169 +121,155 @@ Cez_Predictor/
 │   └── cez_direction_model.joblib
 │
 ├── notebooks/
+│   └── CEZ_ML_training.ipynb
 │
 └── vendor/
 ```
-## Data (původ a důkaz sběru)
-Zdroj dat: Yahoo Finance (přes knihovnu yfinance)  
-Ticker: CEZ.PR  
-Interval: 1 den (1d)
 
-V projektu je:
-- `data/raw/cez_pr.csv` – stažený dataset
-- `data/data_info.txt` – metadata o stažení (datum stažení, rozsah, počet řádků, sloupce)
+---
 
-Poznámka: dataset není žádný hotový dataset z internetu. Data byla stažena skriptem v Colabu.
+# Data (původ dat)
 
-## Jak funguje ML část
-### Cíl (label)
+Zdroj dat: **Yahoo Finance**  
+Ticker: `CEZ.PR`  
+Interval: `1d`
+
+Data byla získána pomocí knihovny:
+
+```
+yfinance
+```
+
+Dataset obsahuje historická denní data:
+
+- Open
+- High
+- Low
+- Close
+- Volume
+
+Součástí projektu:
+
+```
+data/raw/cez_pr.csv
+```
+
+Metadata datasetu:
+
+```
+data/data_info.txt
+```
+
+Metadata obsahují:
+
+- zdroj dat
+- ticker
+- datum stažení
+- rozsah dat
+- počet záznamů
+
+Dataset obsahuje více než **1500 záznamů**.
+
+---
+
+# Jak funguje ML model
+
+## Cíl (label)
+
 Pro každý den `t`:
-- label = 1 pokud `Close(t+1) > Close(t)`
-- label = 0 jinak
 
-To znamená, že predikujeme směr dalšího dne, ne cenu.
+```
+label = 1 pokud Close(t+1) > Close(t)
+label = 0 jinak
+```
 
-### Features (atributy)
-Z denních dat se počítá minimálně těchto 5 features:
-- `return_1d` – denní procentní změna Close
-- `sma_5` – klouzavý průměr Close za 5 dní
-- `sma_10` – klouzavý průměr Close za 10 dní
-- `volatility_5` – směrodatná odchylka return_1d za posledních 5 dní
-- `volume_change_1d` – denní procentní změna Volume
+Model tedy predikuje směr dalšího dne.
 
-Řádky s NaN (vzniklé kvůli rolling oknům) se odstraní.
-Pokud vznikne inf (např. dělení nulou), nahradí se NaN a taky se to odstraní.
+---
 
-### Preprocessing
-- odstranění NaN řádků po výpočtu features
-- časové dělení na train/test bez míchání:
-  - 80 % starší data train
-  - 20 % novější data test
-- škálování: StandardScaler (jen na features)
-- model: LogisticRegression
+## Features (atributy)
 
-### Vyhodnocení
-Při tréninku se vypíše:
+Z historických dat se počítají technické atributy:
+
+- return_1d
+- sma_5
+- sma_10
+- volatility_5
+- volume_change_1d
+- hl_range
+- open_close
+- return_3d
+- sma_ratio
+- momentum_5
+
+Tyto atributy popisují krátkodobý vývoj ceny a objemu obchodování.
+
+---
+
+## Preprocessing dat
+
+Před tréninkem probíhá:
+
+- odstranění NaN hodnot
+- odstranění nekonečných hodnot
+- výpočet technických atributů
+
+Data se dělí časově:
+
+```
+80 % train
+20 % test
+```
+
+Bez náhodného míchání, aby byl zachován časový pořádek.
+
+---
+
+## Škálování
+
+Features jsou škálovány pomocí:
+
+```
+StandardScaler
+```
+
+---
+
+## Použitý model
+
+Model:
+
+```
+Logistic Regression
+```
+
+Model klasifikuje pravděpodobnost, že cena další den poroste nebo klesne.
+
+---
+
+## Vyhodnocení modelu
+
+Při tréninku se vypisují metriky:
+
 - accuracy
 - confusion matrix
 - classification report
 
-Cílem není “dokonalá přesnost”, ale správný proces (sběr dat, preprocessing, model, vyhodnocení, aplikace).
+Cílem projektu není vytvořit dokonalý trading model, ale ukázat celý proces:
 
-## Spuštění programu (bez IDE – pouze CMD)
-
-Tento postup je určen pro spuštění projektu bez použití PyCharmu nebo jiného IDE.
-
-### 1) Otevření příkazové řádky
-
-Stiskni:
-```
-Win + R
-```
-
-Napiš:
-```
-cmd
-```
-
-Potvrď Enter.
+- sběr dat
+- preprocessing dat
+- vytvoření features
+- trénování modelu
+- vyhodnocení modelu
+- jednoduchá aplikace
 
 ---
 
-### 2) Přechod do složky projektu
+# Poznámka
 
-Pokud máš projekt stažený jako ZIP a rozbalený například na ploše:
+Tento projekt je demonstrační projekt pro práci s historickými daty a strojovým učením.
 
-```
-cd C:\Users\TVOJE_JMENO\Desktop\Cez_Predictor
-```
+Predikce modelu vychází pouze z historických dat a nebere v úvahu ekonomické zprávy, makroekonomické události ani jiné faktory.
 
-Pokud je projekt jinde, přejdi do odpovídající složky pomocí `cd`.
-
----
-
-### 3) Vytvoření virtuálního prostředí
-
-V kořenové složce projektu spusť:
-
-```
-py -3.13 -m venv .venv
-```
-
-Pokud by verze 3.13 nebyla dostupná:
-
-```
-py -m venv .venv
-```
-
----
-
-### 4) Aktivace virtuálního prostředí
-
-```
-.venv\Scripts\activate
-```
-
-Po aktivaci by se mělo zobrazit:
-
-```
-(.venv) C:\...
-```
-
----
-
-### 5) Instalace potřebných knihoven
-
-```
-pip install -r requirements.txt
-```
-
-Počkej, než se všechny balíčky nainstalují.
-
----
-
-### 6) Trénink modelu
-
-Spusť:
-
-```
-py train_model.py
-```
-
-Po dokončení se vytvoří soubor:
-
-```
-models\cez_direction_model.joblib
-```
-
-Zároveň se v konzoli vypíše accuracy a další metriky.
-
----
-
-### 7) Spuštění aplikace (predikce)
-
-Spusť:
-
-```
-py app.py
-```
-
-Aplikace vypíše:
-
-- Ticker
-- Poslední den v datech
-- Pravděpodobnost růstu
-- Predikci dalšího dne (NAHORU / DOLŮ)
-
----
-
-## Poznámka
-
-- Projekt nevyžaduje žádné IDE.
-- Stačí mít nainstalovaný Python.
-- Internet je potřeba pouze pro instalaci knihoven (pip).
-- Samotná predikce funguje offline, pokud už jsou data a model vytvořeny.
-## Omezení
-- Predikce není investiční doporučení a nezaručuje zisk.
-- Akciové trhy jsou hodně náhodné, takže přesnost může být nízká.
-- Model používá jen jednoduché technické atributy, není to profesionální trading systém.
+Nejedná se o investiční doporučení.
