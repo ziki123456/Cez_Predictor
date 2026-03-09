@@ -1,8 +1,8 @@
 Source: Yahoo Finance (via yfinance)
 Ticker: CEZ.PR
-Downloaded: 2026-02-25 17:54:28 UTC
+Downloaded: 2026-03-09 20:07:13 UTC
 Interval: 1d
-Start date: 2016-02-25
-End date: 2026-02-24
-Records: 2505
+Start date: 2016-03-09
+End date: 2026-03-06
+Records: 2504
 Columns: Date, Adj Close, Close, High, Low, Open, Volume
