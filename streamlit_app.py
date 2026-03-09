@@ -55,6 +55,12 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["volatility_5"] = df["return_1d"].rolling(window=5).std()
     df["volume_change_1d"] = df["Volume"].pct_change()
 
+    df["hl_range"] = (df["High"] - df["Low"]) / df["Close"]
+    df["open_close"] = (df["Close"] - df["Open"]) / df["Open"]
+    df["return_3d"] = df["Close"].pct_change(periods=3)
+    df["sma_ratio"] = df["sma_5"] / df["sma_10"]
+    df["momentum_5"] = df["Close"] / df["Close"].shift(5) - 1
+
     df = df.replace([np.inf, -np.inf], np.nan)
 
     return df

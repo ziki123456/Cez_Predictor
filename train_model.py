@@ -25,6 +25,11 @@ FEATURE_COLUMNS = [
     "sma_10",
     "volatility_5",
     "volume_change_1d",
+    "hl_range",
+    "open_close",
+    "return_3d",
+    "sma_ratio",
+    "momentum_5",
 ]
 
 
@@ -34,21 +39,15 @@ def load_data(csv_path: Path) -> pd.DataFrame:
 
     df = pd.read_csv(csv_path)
 
-    # Někdy bývá místo Date sloupec Datetime
     if "Datetime" in df.columns and "Date" not in df.columns:
         df = df.rename(columns={"Datetime": "Date"})
 
-    # Pokud jsou sloupce "divné" (např. po exportu z MultiIndexu),
-    # zkusíme je převést na čisté stringy bez prázdných znaků
     df.columns = [str(c).strip() for c in df.columns]
 
-    # Někdy se stane, že se do CSV dostane navíc sloupec jako "Unnamed: 0"
     unnamed = [c for c in df.columns if c.lower().startswith("unnamed")]
     if unnamed:
         df = df.drop(columns=unnamed)
 
-    # Zkusíme najít základní OHLCV sloupce i kdyby byly v jiném zápisu
-    # (např. "Adj Close" nechceme povinně)
     col_map = {
         "open": None,
         "high": None,
@@ -70,7 +69,6 @@ def load_data(csv_path: Path) -> pd.DataFrame:
         elif cl == "volume":
             col_map["volume"] = c
 
-    # Kontrola, že jsme našli všechno
     missing = [k for k, v in col_map.items() if v is None]
     if "Date" not in df.columns or missing:
         raise ValueError(
@@ -104,27 +102,23 @@ def load_data(csv_path: Path) -> pd.DataFrame:
 def add_features_and_label(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    # return_1d = procentní změna Close
     df["return_1d"] = df["Close"].pct_change()
-
-    # SMA
     df["sma_5"] = df["Close"].rolling(window=5).mean()
     df["sma_10"] = df["Close"].rolling(window=10).mean()
-
-    # volatilita = směrodatná odchylka returnů
     df["volatility_5"] = df["return_1d"].rolling(window=5).std()
-
-    # změna objemu
     df["volume_change_1d"] = df["Volume"].pct_change()
+
+    df["hl_range"] = (df["High"] - df["Low"]) / df["Close"]
+    df["open_close"] = (df["Close"] - df["Open"]) / df["Open"]
+    df["return_3d"] = df["Close"].pct_change(periods=3)
+    df["sma_ratio"] = df["sma_5"] / df["sma_10"]
+    df["momentum_5"] = df["Close"] / df["Close"].shift(5) - 1
 
     df["label"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
 
     df = df.replace([np.inf, -np.inf], np.nan)
 
-    # poslední řádek nemá label (nemá t+1)
     df = df.iloc[:-1].copy()
-
-    # odstraníme NaN vzniklé rolling/pct_change
     df = df.dropna(subset=FEATURE_COLUMNS + ["label"]).reset_index(drop=True)
 
     return df
@@ -164,7 +158,14 @@ def main() -> None:
     pipeline = Pipeline(
         steps=[
             ("scaler", StandardScaler()),
-            ("model", LogisticRegression(max_iter=2000, random_state=42)),
+            (
+                "model",
+                LogisticRegression(
+                    max_iter=2000,
+                    random_state=42,
+                    class_weight="balanced",
+                ),
+            ),
         ]
     )
 
@@ -195,7 +196,7 @@ def main() -> None:
         p.model_out,
     )
 
-    print(f"\n Model uložen do: {p.model_out}")
+    print(f"\nModel uložen do: {p.model_out}")
 
 
 if __name__ == "__main__":
