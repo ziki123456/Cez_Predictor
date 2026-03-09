@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
 import joblib
 import numpy as np
@@ -11,6 +12,11 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 @dataclass(frozen=True)
 class Paths:

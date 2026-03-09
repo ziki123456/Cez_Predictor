@@ -238,27 +238,41 @@ def filter_chart_data(df: pd.DataFrame, period_label: str) -> pd.DataFrame:
 
 
 def build_price_chart(chart_df: pd.DataFrame) -> alt.Chart:
+
     chart_data = chart_df.copy()
+
+    chart_data["SMA_5"] = chart_data["Close"].rolling(window=5).mean()
+    chart_data["SMA_10"] = chart_data["Close"].rolling(window=10).mean()
+
     chart_data["DateText"] = chart_data["Date"].dt.strftime("%Y-%m-%d")
     chart_data["CloseRounded"] = chart_data["Close"].round(2)
 
-    chart = (
-        alt.Chart(chart_data)
-        .mark_line()
-        .encode(
-            x=alt.X("Date:T", title="Datum"),
-            y=alt.Y("Close:Q", title="Close cena"),
-            tooltip=[
-                alt.Tooltip("DateText:N", title="Datum"),
-                alt.Tooltip("CloseRounded:Q", title="Close", format=".2f"),
-            ],
-        )
-        .properties(height=420)
-        .interactive()
+    base = alt.Chart(chart_data)
+
+    price_line = base.mark_line().encode(
+        x=alt.X("Date:T", title="Datum"),
+        y=alt.Y("Close:Q", title="Cena"),
+        tooltip=[
+            alt.Tooltip("DateText:N", title="Datum"),
+            alt.Tooltip("CloseRounded:Q", title="Close", format=".2f"),
+        ],
     )
 
-    return chart
+    sma5_line = base.mark_line(strokeDash=[4,2]).encode(
+        x="Date:T",
+        y="SMA_5:Q"
+    )
 
+    sma10_line = base.mark_line(strokeDash=[2,2]).encode(
+        x="Date:T",
+        y="SMA_10:Q"
+    )
+
+    chart = (price_line + sma5_line + sma10_line).properties(
+        height=420
+    ).interactive()
+
+    return chart
 
 def format_prediction_text(verdict: str, probability: float) -> str:
     if np.isnan(probability):
