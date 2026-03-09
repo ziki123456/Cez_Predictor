@@ -76,21 +76,119 @@ Při tréninku se vypíše:
 
 Cílem není “dokonalá přesnost”, ale správný proces (sběr dat, preprocessing, model, vyhodnocení, aplikace).
 
-## Jak to spustit (PyCharm doma)
-1) Nainstaluj knihovny:
-- `pip install -r requirements.txt`
+## Spuštění programu (bez IDE – pouze CMD)
 
-2) Trénink modelu:
-- spusť `train_model.py`
-- vytvoří se `models/cez_direction_model.joblib`
+Tento postup je určen pro spuštění projektu bez použití PyCharmu nebo jiného IDE.
 
-3) Predikce:
-- spusť `app.py`
-- vypíše poslední datum v datech, pravděpodobnost a NAHORU/DOLŮ
+### 1) Otevření příkazové řádky
 
-## Spuštění ve škole (bez IDE)
-Ve škole se to bude spouštět z příkazové řádky (CMD/PowerShell). Postup doplním v rámci testování deploye.
+Stiskni:
+```
+Win + R
+```
 
+Napiš:
+```
+cmd
+```
+
+Potvrď Enter.
+
+---
+
+### 2) Přechod do složky projektu
+
+Pokud máš projekt stažený jako ZIP a rozbalený například na ploše:
+
+```
+cd C:\Users\TVOJE_JMENO\Desktop\Cez_Predictor
+```
+
+Pokud je projekt jinde, přejdi do odpovídající složky pomocí `cd`.
+
+---
+
+### 3) Vytvoření virtuálního prostředí
+
+V kořenové složce projektu spusť:
+
+```
+py -3.13 -m venv .venv
+```
+
+Pokud by verze 3.13 nebyla dostupná:
+
+```
+py -m venv .venv
+```
+
+---
+
+### 4) Aktivace virtuálního prostředí
+
+```
+.venv\Scripts\activate
+```
+
+Po aktivaci by se mělo zobrazit:
+
+```
+(.venv) C:\...
+```
+
+---
+
+### 5) Instalace potřebných knihoven
+
+```
+pip install -r requirements.txt
+```
+
+Počkej, než se všechny balíčky nainstalují.
+
+---
+
+### 6) Trénink modelu
+
+Spusť:
+
+```
+py train_model.py
+```
+
+Po dokončení se vytvoří soubor:
+
+```
+models\cez_direction_model.joblib
+```
+
+Zároveň se v konzoli vypíše accuracy a další metriky.
+
+---
+
+### 7) Spuštění aplikace (predikce)
+
+Spusť:
+
+```
+py app.py
+```
+
+Aplikace vypíše:
+
+- Ticker
+- Poslední den v datech
+- Pravděpodobnost růstu
+- Predikci dalšího dne (NAHORU / DOLŮ)
+
+---
+
+## Poznámka
+
+- Projekt nevyžaduje žádné IDE.
+- Stačí mít nainstalovaný Python.
+- Internet je potřeba pouze pro instalaci knihoven (pip).
+- Samotná predikce funguje offline, pokud už jsou data a model vytvořeny.
 ## Omezení
 - Predikce není investiční doporučení a nezaručuje zisk.
 - Akciové trhy jsou hodně náhodné, takže přesnost může být nízká.
