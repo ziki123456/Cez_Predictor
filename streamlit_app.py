@@ -237,8 +237,7 @@ def filter_chart_data(df: pd.DataFrame, period_label: str) -> pd.DataFrame:
     return df[df["Date"] >= start_date].copy()
 
 
-def build_price_chart(chart_df: pd.DataFrame) -> alt.Chart:
-
+def build_price_chart(chart_df: pd.DataFrame, show_sma: bool) -> alt.Chart:
     chart_data = chart_df.copy()
 
     chart_data["SMA_5"] = chart_data["Close"].rolling(window=5).mean()
@@ -246,33 +245,46 @@ def build_price_chart(chart_df: pd.DataFrame) -> alt.Chart:
 
     chart_data["DateText"] = chart_data["Date"].dt.strftime("%Y-%m-%d")
     chart_data["CloseRounded"] = chart_data["Close"].round(2)
+    chart_data["SMA5Rounded"] = chart_data["SMA_5"].round(2)
+    chart_data["SMA10Rounded"] = chart_data["SMA_10"].round(2)
 
-    base = alt.Chart(chart_data)
+    base = alt.Chart(chart_data).encode(
+        x=alt.X("Date:T", title="Datum")
+    )
 
     price_line = base.mark_line().encode(
-        x=alt.X("Date:T", title="Datum"),
         y=alt.Y("Close:Q", title="Cena"),
+        color=alt.value("#7ec8ff"),
         tooltip=[
             alt.Tooltip("DateText:N", title="Datum"),
             alt.Tooltip("CloseRounded:Q", title="Close", format=".2f"),
         ],
     )
 
-    sma5_line = base.mark_line(strokeDash=[4,2]).encode(
-        x="Date:T",
-        y="SMA_5:Q"
-    )
+    chart = price_line
 
-    sma10_line = base.mark_line(strokeDash=[2,2]).encode(
-        x="Date:T",
-        y="SMA_10:Q"
-    )
+    if show_sma:
+        sma5_line = base.mark_line(strokeDash=[6, 3]).encode(
+            y=alt.Y("SMA_5:Q"),
+            color=alt.value("#f4d35e"),
+            tooltip=[
+                alt.Tooltip("DateText:N", title="Datum"),
+                alt.Tooltip("SMA5Rounded:Q", title="SMA 5", format=".2f"),
+            ],
+        )
 
-    chart = (price_line + sma5_line + sma10_line).properties(
-        height=420
-    ).interactive()
+        sma10_line = base.mark_line(strokeDash=[2, 2]).encode(
+            y=alt.Y("SMA_10:Q"),
+            color=alt.value("#ee964b"),
+            tooltip=[
+                alt.Tooltip("DateText:N", title="Datum"),
+                alt.Tooltip("SMA10Rounded:Q", title="SMA 10", format=".2f"),
+            ],
+        )
 
-    return chart
+        chart = alt.layer(price_line, sma5_line, sma10_line)
+
+    return chart.properties(height=420).interactive()
 
 def format_prediction_text(verdict: str, probability: float) -> str:
     if np.isnan(probability):
@@ -365,12 +377,17 @@ def main() -> None:
         selection_mode="single",
     )
 
+    show_sma = st.checkbox("Zobrazit SMA 5 a SMA 10", value=False)
+
     filtered_chart_df = filter_chart_data(df, chart_period)
 
     if filtered_chart_df.empty:
         st.warning("Pro vybrané období nejsou k dispozici žádná data.")
     else:
-        st.altair_chart(build_price_chart(filtered_chart_df), use_container_width=True)
+        st.altair_chart(
+            build_price_chart(filtered_chart_df, show_sma=show_sma),
+            use_container_width=True
+        )
 
         chart_start = filtered_chart_df["Date"].min().date().isoformat()
         chart_end = filtered_chart_df["Date"].max().date().isoformat()
@@ -378,6 +395,9 @@ def main() -> None:
             f"Zobrazené období: {chart_start} až {chart_end} | "
             f"Počet řádků: {len(filtered_chart_df)}"
         )
+
+        if show_sma:
+            st.caption("Barvy v grafu: modrá = Close, žlutá = SMA 5, oranžová = SMA 10")
 
     st.subheader("Základní statistiky datasetu")
 
