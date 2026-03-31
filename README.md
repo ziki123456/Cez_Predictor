@@ -171,6 +171,10 @@ Zároveň se v konzoli vypíše accuracy a další metriky.
 Spusť:
 
 ```
+py app.py
+```
+
+```
 streamlit run streamlit_app.py
 ```
 
